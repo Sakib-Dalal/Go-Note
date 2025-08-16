@@ -291,3 +291,162 @@ fmt.Println(people)
 ```
 ## Returning Functions from Functions
 In addition to using a closure to pass some function state to another function, you can also return a closure from a function.
+Let's demonstrate this by writing a function that returns a multiplier function. 
+```Go
+func makeMult(base int) func(int) int {
+	return func(factor int) int {
+		return base * factor 
+	}
+}
+```
+And here is how the function is used
+```Go
+func main() {
+	twoBase := makeMult(2)
+	threeBase := makeMult(3)
+	for i := 0; i < 3; i++ {
+		fmt.Println(twoBase(i), threeBase(i))
+	}
+}
+```
+```Output 
+0 0
+2 3
+4 6
+```
+A closure is also used to efficiently search a sorted slice with `sort.Search`. As for returning closures, you will see this pattern used when you build middleware for a web server in ==Middleware==. Go also uses closures to implement resource cleanup, via the `defer` keyword.
+## ==defer==
+Programs often create temporary resources, like files or network connections, that need to be cleaned up. This cleanup has to happen, no matter how many exit points a function has, or whether a function completed successfully or not. In Go, the cleanup code is attached to the function with the `defer` keyword.
+Let's take a look at how to use `defer` to release resources. 
+- You'll do this by writing a simple version of `cat`, the Unix utility for printing the contents of file.
+```Go
+func main() {
+	if len(os.Args) < 2 {
+		log.Fatal("no file specified")
+	}
+	f, err := os.Open(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	data := make([]byte, 2048)
+	for {
+		count, err := f.Read(data)
+		os.Stdout.Write(data[:count])
+		if err != nil {
+			if err != io.EOF {
+				log.Fatal(err)
+			}
+			break
+		}
+	}
+}
+```
+```Bash
+go run hello.go test.txt
+```
+```Output
+Hello World
+How are you?
+```
+First, you make sure that a filename was specified on the command line by checking the length of os.Args, a slice in the os package. The first value in os.Args is the name of the program. The remaining values are the arguments passed to the program. You check that the length of os.Args is at least 2 to determine whether the argument to the program was provided. If it wasn’t, use the Fatal function in the log package to print a message and exit the program. Next, you acquire a read-only file handle with the Open function in the os package. The second value that’s returned by Open is an error. If there’s a problem opening the file, you print the error message and exit the program. As mentioned earlier, I’ll talk about errors in Chapter 9. 
+
+Once you know there is a valid file handle, you need to close it after you use it, no matter how you exit the function. To ensure that the cleanup code runs, you use the defer keyword, followed by a function or method call. In this case, you use the Close method on the file variable. (I cover at methods in Go in Chapter 7.) Normally, a function call runs immediately, but defer delays the invocation until the surrounding function exits. 
+
+You read from a file handle by passing a slice of bytes into the Read method on a file variable. I’ll cover how to use this method in detail in “io and Friends”, but Read returns the number of bytes that were read into the slice and an error. If an error occurs, you check whether it’s an end-of-file marker. If you are at the end of the file, you use break to exit the for loop. For all other errors, you report it and exit immediately, using log.Fatal. I’ll talk a little more about slices and function parameters in “Go Is Call by Value” and go into details on this pattern when I discuss pointers in the next chapter.
+
+You can `defer` multiple functions in a Go function. They run in last-in, first-out (LIFO) order, the last `defer` registered runs first.
+The code within `defer` functions runs *after* the return statement. As mentioned, you can supply a function within input parameters to a `defer`. The input parameters are evaluated immediately and their values are stored until the function runs. 
+Here is the quick example:
+```Go 
+func deferExample() int {
+	a := 10
+	defer func(val int) {
+		fmt.Println("first:", val)
+	}(a)
+	a = 20
+	defer func(val int) {
+		fmt.Println("second:", val)
+	}(a)
+	a = 30
+	fmt.Println("exiting:", a)
+	return a
+}
+```
+```Output
+exiting: 30
+second: 20
+first: 10
+```
+## Go Is Call by Value
+You might hear people say that Go is a ***call-by-value*** language and wonder what that means. It means that you supply a variable for a parameter to a function, Go *always* makes a copy of the value of the variable. 
+```Go
+type person struct {
+	age int
+	name string
+}
+```
+Next you write a function that takes in an `int`, a `string` and a `person`, and modifies their values.
+```Go
+func modifyFails(i int, s string, p person) {
+	i = i * 2
+	s = "Goodbye"
+	p.name = "Bob"
+}
+```
+You then call this function from `main` and see whether the modifications sticks.
+```Go
+func main() {
+	p := person{}
+	i := 2
+	s := "Hello"
+	modifyFails(i, s, p)
+	fmt.Println(i, s, p)
+}
+```
+```Output
+2 Hello {0 }
+```
+Running this code shows that a function won't change the values of the parameters passed into it.
+
+> If you have programming experience in Java, JavaScript, Python, or Ruby, you might find the `struct` behavior strange. After all, those languages let you modify the fields in an object when you pass an object as a parameter to a function.
+
+The behaviour is a little different for maps and slices. Let's see what happens when you try to modify them within a function. 
+```Go
+func modMap(m map[int]string) {
+	m[2] = "hello"
+	m[3] = "goodbye"
+	delete(m, 1)
+}
+
+func modSlice(s []int) {
+	for k, v := range s {
+		s[k] = v * 2
+	}
+	s = append(s, 10)
+}
+```
+You then call these functions from main.
+```Go 
+func main() {
+	// for map 
+	m := map[int]string {
+		1: "first",
+		2: "second",
+	}
+	modMap(m)
+	fmt.Println(m)
+	
+	// for slice
+	s := []int{1, 2, 3}
+	modSlice(s)
+	fmt.Println(s)
+}
+```
+```Output
+map[2:hello 3:goodbye]
+[2 4 6]
+```
+- Any changes made to a map parameter are reflected in the variable passed into the function. 
+- You can modify any element in the slice, but you can't lengthen the slice. 
+- This is true for maps and slices that are passed directly into functions as well as map and slice fields in structs.
