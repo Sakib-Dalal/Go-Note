@@ -199,3 +199,23 @@ func main() {
     fmt.Println(x) // prints 20  
 }
 ```
+
+## Reducing the Garbage Collector's Workload
+When programmers talk about "garbage" what they mean is "data that has no more pointers pointing to it." Once there are no more pointers pointing to some data, the memory that this data takes up can be reused. If the memory isn't recovered, the program's memory usage would continue to grow until the computer ran out of RAM. The job of the garbage collector is to automatically detect unused memory and recover it so it can be reused.
+
+Many garbage-collection algorithms have been written, and they can be placed into two rough categories,
+- Those that are designed for higher throughput (find the most garbage possible in a single scan).
+- Lower latency (finish the garbage scan as quickly as possible).
+
+> **Jeffrey Dean**, the genius behind many Google's engineering successes, cowrote a paper in 2013 called *The Tail at Scale*. It argues that systems should be optimised for latency, to keep response times low. 
+
+The garbage collector used by the Go runtime favours low latency.
+The second problem deals with the nature of computer hardware. RAM might mean "random access memory", but the fastest way to read from memory is to read it sequentially. A slice of structs in Go has all the data laid out sequentially in memory. This makes it fast to load and fast to process. A slice of pointers to structs has its data scattered across RAM, making it far slower to read and process. 
+
+> The approach of writing software that's aware of the hardware it's running on is called *mechanical sympathy*. 
+
+### Tuning the Garbage Collector
+A garbage collector doesn't immediately reclaim memory as soon as it is no longer referenced. Doing so would seriously impact performance. Instead, it lets the garbage pile up for a bit. The heap almost always contains both live data and memory that's no longer needed. The Go runtime provides users a couple of settings to control the heap's size. The first is the `GOGC` environment variable. The garbage collector look at the heap size at the end of a garbage collection cycle and uses the formula `CURRENT_HEAP_SIZE + CURRENT_HEAP_SIZE*GOGC/100` to calculate the heap size that needs to be reached to trigger the next garbage collection cycle. 
+By default, `GOGC` is set to 100, which means that the heap size that triggers the next collection is roughly double the heap size at the end of the current collection. Setting `GOGC` to a smaller value will decrease the target heap size, and setting it to a larger value will increase it. 
+Setting `GOGC` to off disables garbage collection. This will make your programs run faster. However turning off garbage collection on a long running process will potentially use all available memory on your computer. 
+The second garbage-collection setting specifies a limit on the total amount of memory your Go program is allowed to use. By default the `GOMEMLIMIT` is disable. The value for `GOMEMLIMIT` is specified in bytes, but you can optionally use the suffixes B, KiB, MiB, GiB, and TiB. For example, `GOMEMLIMIT=3GiB` sets the memory limit to 3 gibibytes.
