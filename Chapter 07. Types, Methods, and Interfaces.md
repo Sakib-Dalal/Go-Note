@@ -132,3 +132,10 @@ func main() {
 ```Output
 John Doe, age 42
 ```
+
+## Pointer Receivers and Value Receivers
+Go uses parameters of pointer type to indicate that a parameter might be modified by the function. The same rule apply for method receivers too. They can be *pointer receivers (the type is a pointer type)* or *value receivers (the type is a value type)*. 
+The following rules help you determine when to use each kind of receivers:
+- If your method modifies the receiver, you must use a pointer receiver.
+- If your method needs to handle `nil` instances then it *must* use a pointer receiver.
+- If your method doesn't modify the receiver, you *can* use a value receiver.
