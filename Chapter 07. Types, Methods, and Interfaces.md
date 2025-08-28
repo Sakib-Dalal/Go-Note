@@ -315,3 +315,42 @@ func main() {
 Tree values (in-order):
 3 4 5 7 9 
 ```
+
+## Methods Are Functions Too
+Methods in Go are so much like functions that you can use a method as a replacement for a function anytime there's a variable or parameter of a function type.
+Let's start with the simple type.
+```Go
+package main  
+  
+import "fmt"  
+  
+type Adder struct {  
+    start int  
+}  
+  
+func (a Adder) AddTo(val int) int {  
+    return a.start + val  
+}  
+  
+func main() {  
+    a := Adder{start: 10}  
+    fmt.Println(a.start)  
+    fmt.Println(a.AddTo(5))  
+}
+```
+```Output
+10
+15
+```
+You can also assign the method to a variable or pass it to a parameter of type `func(int)int`. This is called a *method value*.
+```Go
+f1 := a.AddTo
+fmt.Println(f1(10))  // Prints 20
+```
+A method value is a bit like a closure, since it can access the values in the fields of the instance from which it was created.
+You can also create a function from the type itself. This is called a *method expression*.
+```Go
+f2 := Adder.AddTo
+fmt.Println(f2(a, 15))  // prints 25
+```
+In a method expression, the first parameter is the receiver for the method; the function signature is `func(Adder, int) int`.
