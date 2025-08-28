@@ -252,3 +252,66 @@ in main: total: 1, last updated: 2025-08-28 12:57:57.014131 +0530 IST m=+0.00040
 ```
 
 ## Code Your Methods for nil Instances
+ The previous section covered pointer receivers, which might make you wonder what happens when you call a method on a `nil` instance. 
+ Go does something a little different. It actually tries to invoke the method. As mentioned earlier, 
+ - if it's a *method with value receiver*, you'll get a panic, since there is no value being pointed to by the pointer. 
+ - If it's a *method with a pointer receiver*, it can work if the method is written to handle the possibilities of a `nil` instance.
+In some cases, expecting a `nil` receiver makes the code simpler. 
+Here's an implementation of binary tree that takes advantage of `nil` values for the receiver.
+```Go
+package main  
+  
+import "fmt"  
+  
+type IntTree struct {  
+    value int  
+    left  *IntTree  
+    right *IntTree  
+}  
+  
+// Corrected Insert methodfunc (it *IntTree) Insert(value int) *IntTree {  
+    if it == nil {  
+       // Base case: We've found an empty spot. Create a new node.  
+       return &IntTree{value: value}  
+    }  
+  
+    // Recursive step: Traverse down the tree  
+    if value < it.value {  
+       // Make the recursive call on the LEFT CHILD  
+       it.left = it.left.Insert(value)  
+    } else if value > it.value {  
+       // Make the recursive call on the RIGHT CHILD  
+       it.right = it.right.Insert(value)  
+    }  
+    // If value == it.value, do nothing (no duplicates)  
+    return it  
+}  
+  
+func main() {  
+    var intTree *IntTree  
+    intTree = intTree.Insert(5)  
+    intTree = intTree.Insert(7)  
+    intTree = intTree.Insert(9)  
+    intTree = intTree.Insert(3)  
+    intTree = intTree.Insert(4)  
+  
+    // You'll need a way to print the tree to verify it works.  
+    // This simple in-order traversal function will print the values in sorted order.    var traverse func(t *IntTree)  
+    traverse = func(t *IntTree) {  
+       if t == nil {  
+          return  
+       }  
+       traverse(t.left)  
+       fmt.Printf("%d ", t.value)  
+       traverse(t.right)  
+    }  
+  
+    fmt.Println("Tree values (in-order):")  
+    traverse(intTree)  
+    fmt.Println()  
+}
+```
+```Output
+Tree values (in-order):
+3 4 5 7 9 
+```
