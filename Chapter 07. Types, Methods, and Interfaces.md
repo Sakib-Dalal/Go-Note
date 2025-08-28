@@ -132,10 +132,123 @@ func main() {
 ```Output
 John Doe, age 42
 ```
-
+```Go
+package main  
+  
+import "fmt"  
+  
+type Person struct {  
+    FirstName string  
+    LastName  string  
+    Age       int  
+}  
+  
+func (p *Person) String() string {  
+    return fmt.Sprintf("%s %s %d", p.FirstName, p.LastName, p.Age)  
+}  
+  
+func main() {  
+    p := &Person{}  
+    output := p.String()  
+    fmt.Println(output)  
+}
+```
 ## Pointer Receivers and Value Receivers
 Go uses parameters of pointer type to indicate that a parameter might be modified by the function. The same rule apply for method receivers too. They can be *pointer receivers (the type is a pointer type)* or *value receivers (the type is a value type)*. 
 The following rules help you determine when to use each kind of receivers:
 - If your method modifies the receiver, you must use a pointer receiver.
 - If your method needs to handle `nil` instances then it *must* use a pointer receiver.
 - If your method doesn't modify the receiver, you *can* use a value receiver.
+Whether you use a value receiver for a method that doesn't modify the receiver depends on the other methods declared on the type. When a type has any pointer receiver methods, a common practice is to be consistent and use pointer receiver for *all* methods, even the ones that don't modify the receiver.
+Here's some simple code to demonstrate pointer and value receivers. It starts with a type that has two methods on it, one using a value receiver, the other with a pointer receiver.
+```Go
+type Counter string {
+	total int
+	lastUpdated time.Time
+}
+
+func (c *Counter) Increment() {
+	c.total++
+	c.lastUpdated = time.Now()
+}
+
+func (c Counter) String() string {
+	return fmt.Sprintf("total: %d, last updated: %v",  c.total, c.lastUpdated)
+}
+```
+Full code:
+```Go
+package main  
+  
+import (  
+    "fmt"  
+    "time")  
+  
+type Counter struct {  
+    total       int  
+    lastUpdated time.Time  
+}  
+  
+func (c *Counter) Increment() {  
+    c.total++  
+    c.lastUpdated = time.Now()  
+}  
+  
+func (c Counter) String() string {  
+    return fmt.Sprintf("total: %d, last updated: %v", c.total, c.lastUpdated)  
+}  
+  
+func main() {  
+    counter := Counter{  
+       total: 1,  
+    }  
+    counter.Increment()  
+    fmt.Println(counter.String())  
+  
+    counter.Increment()  
+    fmt.Println(counter.String())  
+}
+```
+```Output
+total: 2, last updated: 2025-08-28 12:36:07.013601 +0530 IST m=+0.000173376
+total: 3, last updated: 2025-08-28 12:36:07.014042 +0530 IST m=+0.000614376
+```
+When you use a pointer receiver with a local variable that's a value type, Go automatically takes the address of the local variable when calling the method. In this case, `counter.Increment()` is converted to `(&c).Increment()`.
+If you call a value receiver on a pointer variable, Go automatically dereferences the pointer when calling the method. In this code;
+```Go
+counter := &Counter{}
+fmt.Println(counter.String())
+counter.Increment()
+fmt.Println(counter.String())
+```
+the call `counter.String()` is silently converted to `(*counter).String()`.
+
+> Be aware that the rules for passing values to functions still apply. If you pass a value type to a function and call a pointer receiver method on the passed value, you are invoking the method on a *copy*.
+
+```Go
+func doUpdateWrong(c Counter) {
+	c.Increment()
+	fmt.Println("in doUpdateWrong:", c.String())
+}
+
+func doUpdateRight(c *Counter) {
+	c.Increment()
+	fmt.Println("in doUpdateRight:", c.String())
+}
+
+func main() {
+	var c Counter
+	doUpdateWrong(c)
+	fmt.Println("in main:", c.String())
+	doUpdateRight(&c)
+	fmt.Println("in main:", c.String())
+}
+```
+```Output
+in doUpdateWrong: total: 1, last updated: 2025-08-28 12:57:57.013832 +0530 IST m=+0.000110793
+in main: total: 0, last updated: 0001-01-01 00:00:00 +0000 UTC
+in doUpdateRight: total: 1, last updated: 2025-08-28 12:57:57.014131 +0530 IST m=+0.000409543
+in main: total: 1, last updated: 2025-08-28 12:57:57.014131 +0530 IST m=+0.000409543
+```
+
+## Code Your Methods for nil Instances
